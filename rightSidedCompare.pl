@@ -2,7 +2,7 @@
 use warnings;
 use strict;
 use Data::Dumper;
-#./exactMatches.pl file 1 file2 0 1 2
+#./rightSidedCompare.pl file 1 file2 0 1 2 [d]
 #Given 2 tsv files and specifed column numbers (zero based indices) prints out lines of file 2 that are the same in file 1 for the specified columns.
 #Also creates a disjoint file of lines only present in file 2.
 #Add d flag to print both intersection files
