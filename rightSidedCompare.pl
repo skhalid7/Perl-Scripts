@@ -2,31 +2,34 @@
 use warnings;
 use strict;
 use Data::Dumper;
-#./rightSidedCompare.pl file 1 file2 0 1 2 [d]
+use Getopt::Long qw(GetOptions);
+#Usage: rightSidedCompare.pl -a refFile -b compareFile [-d] col1 col2 col3..
 #Given 2 tsv files and specifed column numbers (zero based indices) prints out lines of file 2 that are the same in file 1 for the specified columns.
 #Also creates a disjoint file of lines only present in file 2.
 #Add d flag to print both intersection files
 
 my $FS = "\t"; #Change Input Field Separator here
+#Getting File Names and input Args
+my %options = ();
+GetOptions("d" => \my $d,
+			"a=s" => \my $ref,
+			"b=s" => \my $compare_file,) #flag
+	or die("Error in command line arguments\n");
 
-my ($ref, $compare_file) = ($ARGV[0], $ARGV[1]);
-$ref =~ s/\r//;
-$compare_file =~ s/\r//;
-my $outComp = "temp_disjoint_".$compare_file; #the two outfiles
-my $outFile3 = "intersection_".$ref."_".$compare_file;
-
-my @columns;
-my $d = 0;
-if ($ARGV[2] eq "d") {
-	$d = 1;
-}
 #Getting column numbers
-for (my $i = (2 + $d); $i < scalar @ARGV; $i++) {
-	push @columns, $ARGV[$i];
+my @columns;
+foreach my $i (@ARGV) {
+	push @columns, $i;
 }
 
-my %store = (); #key is the columns specified; #value is the actual filename<===>line
-my (@iFile, @uFile1);
+#Ensuring all arguments are present
+if (! (defined $ref && defined $compare_file && (scalar @columns >= 1))) {
+	die("Usage: rightSidedCompare.pl -a refFile -b compareFile [-d] columns")
+}
+
+my $outComp = "disjoint_".$compare_file; #the two outfiles
+my %store = (); #key is the columns specified; #value is the an array of lines corresponding to the hash.
+my @uFile1;
 
 sub makeKey {
 	my @array;
@@ -38,7 +41,6 @@ sub makeKey {
 sub Add2Hash {
 	push @{ $store{$_[0]} }, $_[1]; #adding an element into the array of the hash
 }
-
 sub Write2File {
 	my $outfile = pop @_;
 	open(my $ofh, ">", $outfile)
@@ -56,21 +58,25 @@ while (my $line = <$fh1>) {
 	chomp $line;
 	my @fields = split(/$FS/, $line);
 	my $key = makeKey(@fields);
-	$store{$key}++;
+	push @{ $store{$key} }, join("\t", @fields);
 }
 
 open(my $fh2, '<encoding(UTF-8)', $compare_file)
-	or die "Could not open file $ref";
+	or die "Could not open file $compare_file";
 while (my $line = <$fh2>) {
 	chomp $line;
 	my @fields = split(/$FS/, $line);
 	my $key = makeKey(@fields);
 	if (exists $store{$key}) {
-		push @iFile, join("\t", @fields);
+		if (defined $d) {
+			for (my $i = 0; $i < scalar @{ $store{$key} }; $i++) {
+				print join("\t", @fields)."\t".$store{$key}->[$i]."\n";
+			}
+		} else {
+			print join("\t", @fields)."\n";
+		}
 	} else {
 		push @uFile1, join("\t", @fields);
 	}
 }
-
-Write2File(@iFile, $outFile3);
 Write2File(@uFile1, $outComp);
